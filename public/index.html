@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IIT Computer Institute | Email Quiz</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#172033;background:#f1f5f9}
+*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(135deg,#102a56,#2563eb);color:#fff;text-align:center;padding:28px 16px}
+header h1{margin:0 0 8px;font-size:clamp(23px,4vw,32px)}header p{margin:0}
+main{max-width:900px;margin:26px auto;padding:0 15px}.card{background:#fff;border-radius:16px;padding:clamp(18px,4vw,28px);margin-bottom:20px;box-shadow:0 5px 22px #17203312}
+h2{margin-top:0}label.field{display:block;font-weight:bold;margin:15px 0 7px}input[type=text]{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px}
+button{border:0;border-radius:9px;padding:12px 18px;background:#2563eb;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;margin:7px 5px 0 0}button:hover{background:#1d4ed8}button:disabled{opacity:.6;cursor:wait}.secondary{background:#475569}
+.hidden{display:none!important}.notice{color:#475569;font-size:14px;line-height:1.6}.error{color:#b91c1c;font-weight:bold}.success{color:#15803d;font-weight:bold}
+.question{padding:18px 0;border-bottom:1px solid #e2e8f0}.question h3{font-size:17px;line-height:1.5;margin:0 0 12px}.option{display:flex;gap:10px;align-items:flex-start;font-weight:normal;margin:12px 0;cursor:pointer}.option input{margin-top:3px}
+.score{font-size:32px;color:#1d4ed8;font-weight:bold}.review-item{padding:14px 0;border-bottom:1px solid #e2e8f0;line-height:1.6}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:470px}th,td{text-align:left;padding:12px;border-bottom:1px solid #e2e8f0}th{background:#eff6ff}footer{text-align:center;color:#64748b;padding:20px;font-size:13px}
+</style>
+</head>
+<body>
+<header><h1>IIT Computer Institute</h1><p>📧 Email Explorer Quiz — Test Your Knowledge!</p></header>
+<main>
+<section class="card" id="registration">
+<h2>🎯 Student Registration</h2><p>Enter your details and start the quiz.</p>
+<form id="studentForm">
+<label class="field" for="studentName">Student Name</label><input type="text" id="studentName" maxlength="60" required placeholder="Enter your full name">
+<label class="field" for="rollNumber">Roll Number</label><input type="text" id="rollNumber" maxlength="60" required placeholder="Enter your roll number">
+<label class="field" for="batch">Active Batch</label><input type="text" id="batch" maxlength="60" required readonly placeholder="Admin will start a batch">
+<p id="activeBatchNotice" class="notice">Loading active batch...</p>
+<button id="startButton" type="submit">Start Quiz →</button>
+</form>
+<p class="notice">10 MCQs · 1 mark per correct answer · Answer every question. Your result and ranking appear after submission.</p>
+<p id="registrationMessage" class="error" role="alert"></p>
+</section>
+<section class="card" id="adminSection">
+<h2>🔐 Admin — Start New Batch</h2>
+<p class="notice">Only the person who knows the Admin PIN can start a new batch. Starting a new batch does not delete previous results.</p>
+<label class="field" for="adminPin">Admin PIN</label><input type="password" id="adminPin" maxlength="200" autocomplete="current-password" placeholder="Enter Admin PIN">
+<label class="field" for="newBatchName">New Batch Name</label><input type="text" id="newBatchName" maxlength="60" placeholder="Example: Saturday 4:30 PM">
+<button id="startNewBatch">Start New Batch</button>
+<p id="adminMessage" role="status" class="notice"></p>
+</section>
+<section class="card hidden" id="quizSection">
+<h2>📝 Email MCQ Test</h2><p id="progress">10 questions | Total marks: 10</p>
+<form id="quizForm"><div id="questions"></div><button id="submitButton" type="submit">Submit Quiz</button></form>
+<p id="quizMessage" class="error" role="alert"></p>
+</section>
+<section class="card hidden" id="resultSection">
+<h2>🏆 Your Result</h2><div id="resultSummary"></div><h3>Answer Review</h3><div id="review"></div>
+<button id="showLeaderboard">View Leaderboard</button><button class="secondary" id="newStudent">Back to Registration</button>
+</section>
+<section class="card hidden" id="leaderboardSection">
+<h2>🏅 Student Leaderboard</h2><p class="notice">Highest marks rank first. If marks are equal, the earlier submission ranks higher.</p>
+<div class="table-wrap"><table><thead><tr><th>Rank</th><th>Name</th><th>Roll No.</th><th>Batch</th><th>Marks</th><th>%</th></tr></thead><tbody id="leaderboardBody"></tbody></table></div>
+<p id="leaderboardMessage" class="notice"></p><button class="secondary" id="backToResult">Back to Result</button><button id="refreshLeaderboard">Refresh Leaderboard</button>
+</section>
+</main>
+<footer>© IIT Computer Institute | Learn • Practice • Improve</footer>
+<script>
+const $=id=>document.getElementById(id);
+let quizQuestions=[],student={},activeBatch="";
+
+function showSection(id){["registration","quizSection","resultSection","leaderboardSection"].forEach(s=>$(s).classList.add("hidden"));$(id).classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"});}
+async function getJson(url,options={}){const response=await fetch(url,options);let data;try{data=await response.json()}catch{throw new Error("Server response invalid. Restart the website server.")}if(!response.ok)throw new Error(data.error||"Request failed.");return data;}
+
+async function refreshActiveBatch(){
+ try {
+  const data=await getJson("/api/active-batch");
+  activeBatch=data.activeBatch||"";
+  $("batch").value=activeBatch;
+  $("activeBatchNotice").textContent=activeBatch?`Current batch: ${activeBatch}`:"Quiz start nahi hua hai. Admin se batch start karwayein.";
+  $("startButton").disabled=!activeBatch;
+ } catch(err) {
+  $("activeBatchNotice").textContent="Active batch load nahi ho saka: "+err.message;
+  $("startButton").disabled=true;
+ }
+}
+refreshActiveBatch();
+
+$("startNewBatch").addEventListener("click",async()=>{
+ const pin=$("adminPin").value;
+ const batchName=$("newBatchName").value.trim();
+ $("adminMessage").textContent="";
+ if(!pin||!batchName){$("adminMessage").textContent="Admin PIN aur batch name dono enter karein.";return;}
+ $("startNewBatch").disabled=true;
+ try{
+  const data=await getJson("/api/admin/new-batch",{method:"POST",headers:{"Content-Type":"application/json","x-admin-pin":pin},body:JSON.stringify({batchName})});
+  $("adminMessage").textContent=data.message+" Purane batch ke results safe hain.";
+  $("adminMessage").className="success";
+  $("newBatchName").value="";
+  await refreshActiveBatch();
+ }catch(err){
+  $("adminMessage").textContent=err.message;
+  $("adminMessage").className="error";
+ }finally{$("startNewBatch").disabled=false;}
+});
+
+$("studentForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("registrationMessage").textContent="";$("startButton").disabled=true;
+ student={name:$("studentName").value.trim(),roll:$("rollNumber").value.trim(),batch:activeBatch};
+ try{const data=await getJson("/api/quiz");quizQuestions=data.questions;student.batch=data.activeBatch;renderQuestions();showSection("quizSection");}
+ catch(err){$("registrationMessage").textContent=err.message+" Page refresh karein ya admin se batch start karwayein."}
+ finally{$("startButton").disabled=!activeBatch;}
+});
+
+function renderQuestions(){
+ const root=$("questions");root.replaceChildren();$("progress").textContent=`${quizQuestions.length} questions | Total marks: ${quizQuestions.length}`;
+ quizQuestions.forEach((q,i)=>{
+  const section=document.createElement("div");section.className="question";
+  const h=document.createElement("h3");h.textContent=`${i+1}. ${q.question}`;section.appendChild(h);
+  q.options.forEach((opt,j)=>{
+   const label=document.createElement("label");label.className="option";
+   const radio=document.createElement("input");radio.type="radio";radio.name=`q${i}`;radio.value=j;radio.required=true;
+   const span=document.createElement("span");span.textContent=opt;label.append(radio,span);section.appendChild(label);
+  });root.appendChild(section);
+ });
+ $("quizMessage").textContent="";
+}
+
+$("quizForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("quizMessage").textContent="";
+ const answers=quizQuestions.map((q,i)=>{const el=document.querySelector(`input[name="q${i}"]:checked`);return el?Number(el.value):null;});
+ if(answers.some(a=>a===null)){$("quizMessage").textContent="Please answer every question.";return;}
+ $("submitButton").disabled=true;
+ try{const data=await getJson("/api/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...student,answers})});renderResult(data.result);showSection("resultSection");}
+ catch(err){$("quizMessage").textContent=err.message;}
+ finally{$("submitButton").disabled=false;}
+});
+
+function renderResult(r){
+ const summary=$("resultSummary");summary.replaceChildren();
+ const score=document.createElement("p");score.className="score";score.textContent=`${r.score} / ${r.total}`;
+ const pct=document.createElement("p");pct.textContent=`Percentage: ${r.percentage}%`;
+ const msg=document.createElement("p");msg.className="success";msg.textContent=r.percentage>=80?"Excellent work! 🎉":r.percentage>=50?"Good effort! Keep practising. 👍":"Keep learning and try to improve! 💪";
+ summary.append(score,pct,msg);const review=$("review");review.replaceChildren();
+ r.reviewedAnswers.forEach((a,i)=>{const div=document.createElement("div");div.className="review-item";
+ const title=document.createElement("strong");title.textContent=`${i+1}. ${a.question}`;
+ const your=document.createElement("p");your.textContent=`Your answer: ${a.selected}`;
+ const correct=document.createElement("p");correct.textContent=`Correct answer: ${a.correctAnswer}`;correct.className=a.correct?"success":"error";
+ const exp=document.createElement("p");exp.textContent=a.explanation;div.append(title,your,correct,exp);review.appendChild(div);});
+}
+
+async function loadLeaderboard(){
+ $("leaderboardBody").replaceChildren();$("leaderboardMessage").textContent="Loading leaderboard...";
+ try{const rows=await getJson("/api/leaderboard");$("leaderboardMessage").textContent=rows.length?`${rows.length} student result(s) recorded.`:"No quiz results yet.";
+ rows.forEach(r=>{const tr=document.createElement("tr");[r.rank,r.name,r.roll,r.batch,`${r.score}/${r.total}`,`${r.percentage}%`].forEach(value=>{const td=document.createElement("td");td.textContent=value;tr.appendChild(td)});$("leaderboardBody").appendChild(tr);});}
+ catch(err){$("leaderboardMessage").textContent=err.message;}
+}
+$("showLeaderboard").addEventListener("click",async()=>{showSection("leaderboardSection");await loadLeaderboard();});
+$("refreshLeaderboard").addEventListener("click",loadLeaderboard);
+$("backToResult").addEventListener("click",()=>showSection("resultSection"));
+$("newStudent").addEventListener("click",()=>{$("studentForm").reset();$("batch").value=activeBatch;$("quizForm").reset();showSection("registration");});
+</script>
+</body>
+</html>
