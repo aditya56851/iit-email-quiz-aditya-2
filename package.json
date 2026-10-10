@@ -1,0 +1,12 @@
+{
+  "name": "iit-computer-institute-email-quiz",
+  "version": "1.0.0",
+  "description": "Email MCQ quiz with automatic scoring and leaderboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
